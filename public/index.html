@@ -1,0 +1,2695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';">
+  <title>Okta TEA Security Assistant</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.15/dist/purify.min.js"
+          integrity="sha384-uUMu9JDY09vBzRf9SPcK2VgUj+W/70J6Soc+Dded5P474ElQ63iv9j5N3DE7Kp3N"
+          crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:       #1662DD;
+      --blue-dark:  #0D4FA8;
+      --blue-light: #EEF4FF;
+      --green:      #15803D;
+      --green-bg:   #F0FDF4;
+      --amber:      #92400E;
+      --amber-bg:   #FFFBEB;
+      --red:        #991B1B;
+      --red-bg:     #FEF2F2;
+      --gray-50:    #F9FAFB;
+      --gray-100:   #F3F4F6;
+      --gray-200:   #E5E7EB;
+      --gray-400:   #9CA3AF;
+      --gray-600:   #4B5563;
+      --gray-800:   #1F2937;
+      --shadow:     0 1px 3px rgba(0,0,0,.10), 0 1px 2px rgba(0,0,0,.06);
+      --shadow-md:  0 4px 6px -1px rgba(0,0,0,.10), 0 2px 4px -1px rgba(0,0,0,.06);
+      --radius:     10px;
+      --font-sans:  -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      --font-mono:  'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--gray-100);
+      font-family: var(--font-sans);
+      color: var(--gray-800);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    /* ── Layout ──────────────────────────────────────────── */
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      box-shadow: var(--shadow-md);
+    }
+
+    /* ── Header ──────────────────────────────────────────── */
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      background: var(--blue);
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    header .logo {
+      width: 64px;
+      height: 64px;
+      background: rgba(255,255,255,.20);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    header .subtitle {
+      font-size: 12px;
+      opacity: .75;
+    }
+
+    #status-badge {
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: rgba(255,255,255,.15);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+      cursor: pointer;
+      user-select: none;
+      transition: background .15s;
+    }
+    #status-badge:hover { background: rgba(255,255,255,.28); }
+
+    #status-badge .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #6EE7B7;
+    }
+
+    #status-badge.disconnected .dot { background: #FCA5A5; }
+    #status-badge.offline-mode { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); }
+    #status-badge.offline-mode .dot { background: #FCD34D; }
+
+    #offline-banner {
+      display: none;
+      background: #FFFBEB;
+      border-bottom: 1px solid #FDE68A;
+      color: #92400E;
+      font-size: 13px;
+      padding: 8px 20px;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    #offline-banner.visible { display: flex; }
+    #offline-banner strong { font-weight: 600; }
+    #offline-banner .dismiss { margin-left: auto; background: none; border: none; color: #92400E; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; opacity: .7; }
+    #offline-banner .dismiss:hover { opacity: 1; }
+
+    #provider-select {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background .15s;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.7)'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      padding-right: 24px;
+    }
+
+    #provider-select:hover { background-color: rgba(255,255,255,.25); }
+    #provider-select option { background: #1662DD; color: #fff; }
+
+    #clear-btn {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      color: #fff;
+      padding: 5px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+
+    #clear-btn:hover { background: rgba(255,255,255,.25); }
+
+    /* ── Messages ────────────────────────────────────────── */
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scroll-behavior: smooth;
+    }
+
+    /* Welcome card */
+    .welcome-card {
+      background: var(--blue-light);
+      border: 1px solid #C7D9F8;
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      font-size: 14px;
+      color: var(--blue-dark);
+    }
+
+    .welcome-card strong { display: block; margin-bottom: 6px; font-size: 15px; }
+
+    .example-prompts {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .example-btn {
+      background: #fff;
+      border: 1px solid #C7D9F8;
+      color: var(--blue);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .example-btn:hover { background: var(--blue); color: #fff; }
+
+    /* Message rows */
+    .message-row {
+      display: flex;
+      gap: 10px;
+      animation: fadeIn .2s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    .message-row.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    .message-row.user    .avatar { background: var(--blue); }
+    .message-row.assistant .avatar { background: var(--gray-600); }
+
+    .bubble {
+      max-width: 78%;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      font-size: 14.5px;
+      line-height: 1.6;
+    }
+
+    .message-row.user    .bubble { background: var(--blue); color: #fff; border-bottom-right-radius: 3px; }
+    .message-row.assistant .bubble { background: #fff; border: 1px solid var(--gray-200); border-bottom-left-radius: 3px; }
+
+    /* Markdown-like elements inside bubbles */
+    .bubble p + p { margin-top: 8px; }
+    .bubble ul, .bubble ol { padding-left: 20px; margin: 6px 0; }
+    .bubble li { margin: 2px 0; }
+    .bubble code { font-family: var(--font-mono); font-size: 13px; background: rgba(0,0,0,.06); padding: 1px 4px; border-radius: 3px; }
+    .message-row.user .bubble code { background: rgba(255,255,255,.2); }
+    .bubble strong { font-weight: 600; }
+
+    /* ── Rendered markdown ('.md' wrapper) ───────────────────── */
+
+    .bubble .md { line-height: 1.6; overflow-x: auto; }
+    .bubble .md > :first-child { margin-top: 0; }
+    .bubble .md > :last-child  { margin-bottom: 0; }
+    .bubble .md h1 { font-size: 17px; font-weight: 700; margin: 14px 0 5px; }
+    .bubble .md h2 { font-size: 15px; font-weight: 600; margin: 12px 0 4px; }
+    .bubble .md h3 { font-size: 14px; font-weight: 600; margin: 10px 0 3px; }
+    .bubble .md p  { margin: 5px 0; }
+    .bubble .md ul, .bubble .md ol { padding-left: 20px; margin: 5px 0; }
+    .bubble .md li { margin: 2px 0; }
+    .bubble .md code { font-family: var(--font-mono); font-size: 12.5px; background: rgba(0,0,0,.06); padding: 1px 4px; border-radius: 3px; }
+    .bubble .md pre { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 6px; padding: 9px 12px; overflow-x: auto; margin: 8px 0; }
+    .bubble .md pre code { background: none; padding: 0; font-size: 12.5px; }
+    .bubble .md blockquote { border-left: 3px solid var(--blue-light); padding-left: 10px; margin: 6px 0; color: var(--gray-600); }
+    .bubble .md hr { border: none; border-top: 1px solid var(--gray-200); margin: 12px 0; }
+    /* Table — scrollable if wider than bubble */
+    .bubble .md .table-wrap { overflow-x: auto; margin: 8px 0; }
+    .bubble .md table { border-collapse: collapse; min-width: 100%; font-size: 13px; }
+    .bubble .md th { background: var(--gray-50); font-weight: 600; padding: 7px 10px; border: 1px solid var(--gray-200); text-align: left; white-space: nowrap; }
+    .bubble .md td { padding: 5px 10px; border: 1px solid var(--gray-200); vertical-align: top; }
+    .bubble .md tr:nth-child(even) td { background: var(--gray-50); }
+    .bubble .md a { color: var(--blue); text-decoration: underline; }
+
+    /* Tool cards */
+    .tool-card {
+      margin: 8px 0 4px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--gray-200);
+      font-size: 13px;
+    }
+
+    .tool-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-200);
+      font-weight: 500;
+    }
+
+    .tool-card-header .icon { font-size: 14px; flex-shrink: 0; }
+    .tool-card-header .tool-name { font-family: var(--font-mono); font-size: 12px; flex: 1; color: var(--gray-600); }
+    .tool-card-header .tool-status { font-size: 11px; font-weight: 400; padding: 2px 8px; border-radius: 10px; }
+
+    .status-calling { background: var(--amber-bg); color: var(--amber); }
+    .status-done    { background: var(--green-bg);  color: var(--green); }
+    .status-error   { background: var(--red-bg);    color: var(--red);   }
+
+    .tool-body { padding: 8px 12px; background: #fff; }
+
+    .tool-section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--gray-400);
+      margin-bottom: 3px;
+      font-weight: 600;
+    }
+
+    .tool-code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--gray-600);
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .tool-result-section { margin-top: 8px; }
+
+    .tool-result-toggle {
+      background: none;
+      border: none;
+      color: var(--blue);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 2px 0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tool-result-full {
+      display: none;
+      margin-top: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .tool-result-full.expanded { display: block; }
+
+    /* Typing cursor */
+    .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: currentColor;
+      margin-left: 1px;
+      vertical-align: text-bottom;
+      animation: blink .8s step-end infinite;
+    }
+
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+    /* Error message */
+    .error-msg {
+      background: var(--red-bg);
+      border: 1px solid #FECACA;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--red);
+      font-size: 14px;
+    }
+
+    /* ── Input area ───────────────────────────────────────── */
+
+    footer {
+      flex-shrink: 0;
+      border-top: 1px solid var(--gray-200);
+      padding: 14px 16px;
+      background: #fff;
+    }
+
+    #input-form {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    #input {
+      flex: 1;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 14.5px;
+      font-family: var(--font-sans);
+      resize: none;
+      min-height: 42px;
+      max-height: 160px;
+      line-height: 1.5;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    #input:focus { border-color: var(--blue); }
+    #input:disabled { background: var(--gray-50); cursor: not-allowed; }
+
+    #send-btn {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0 18px;
+      height: 42px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background .15s;
+    }
+
+    #send-btn:hover:not(:disabled) { background: var(--blue-dark); }
+    #send-btn:disabled { background: var(--gray-400); cursor: not-allowed; }
+
+    #send-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
+
+    .hint {
+      font-size: 11.5px;
+      color: var(--gray-400);
+      margin-top: 6px;
+      text-align: center;
+    }
+
+    /* ── TEA Report panel ────────────────────────────────── */
+
+    #tea-panel {
+      display: none;
+      border: 1px solid #C7D9F8;
+      border-radius: var(--radius);
+      background: var(--blue-light);
+      padding: 14px 16px;
+      margin-top: 10px;
+      animation: fadeIn .2s ease;
+    }
+
+    #tea-panel.open { display: block; }
+
+    #tea-panel h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--blue-dark);
+      margin-bottom: 10px;
+    }
+
+    .tea-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .tea-tab {
+      background: #fff;
+      border: 1px solid #C7D9F8;
+      color: var(--blue);
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .tea-tab.active {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    .tea-pane { display: none; }
+    .tea-pane.active { display: block; }
+
+    .tea-drop-zone {
+      border: 2px dashed #93B4E8;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      background: #fff;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      font-size: 13px;
+      color: var(--gray-600);
+    }
+
+    .tea-drop-zone:hover, .tea-drop-zone.drag-over {
+      border-color: var(--blue);
+      background: #F5F8FF;
+    }
+
+    .tea-drop-zone .drop-icon { font-size: 24px; margin-bottom: 6px; }
+    .tea-drop-zone .drop-label { color: var(--blue); font-weight: 500; }
+    .tea-drop-zone .drop-hint { font-size: 11px; color: var(--gray-400); margin-top: 4px; }
+    .tea-file-name { margin-top: 8px; font-size: 12px; color: var(--green); font-weight: 500; }
+
+    #tea-file-input { display: none; }
+
+    .tea-path-input {
+      width: 100%;
+      border: 1px solid #C7D9F8;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: var(--font-mono);
+      background: #fff;
+      color: var(--gray-800);
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .tea-path-input:focus { border-color: var(--blue); }
+    .tea-path-hint { font-size: 11px; color: var(--gray-400); margin-top: 5px; }
+
+    .tea-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    #tea-cancel-btn {
+      background: #fff;
+      border: 1px solid #C7D9F8;
+      color: var(--blue);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    #tea-cancel-btn:hover { background: var(--gray-100); }
+
+    #tea-submit-btn {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    #tea-submit-btn:hover:not(:disabled) { background: var(--blue-dark); }
+    #tea-submit-btn:disabled { background: var(--gray-400); cursor: not-allowed; }
+
+    /* ── TEA report button ───────────────────────────────── */
+    .tea-report-btn {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      padding: 7px 14px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: background .15s;
+    }
+
+    .tea-report-btn:hover { background: var(--blue-dark); }
+    .tea-report-btn .btn-icon { font-size: 15px; }
+
+    /* ── Artifact cards (terraform + log queries) ────────── */
+
+    .artifact-card {
+      margin: 10px 0 4px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--gray-200);
+      font-size: 13px;
+    }
+
+    .artifact-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--gray-800);
+      color: #fff;
+    }
+
+    .artifact-icon { font-size: 14px; flex-shrink: 0; }
+    .artifact-title { font-weight: 600; font-size: 13px; flex: 1; }
+    .artifact-subtitle { font-size: 11px; opacity: .70; flex-shrink: 0; }
+
+    .artifact-btn {
+      background: rgba(255,255,255,.12);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.20);
+      border-radius: 5px;
+      padding: 3px 9px;
+      font-size: 11px;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+
+    .artifact-btn:hover { background: rgba(255,255,255,.22); }
+    .artifact-btn.success { background: var(--green); border-color: var(--green); }
+
+    .artifact-header-actions { display: flex; gap: 5px; }
+
+    /* Terraform card */
+    .terraform-card .artifact-code {
+      margin: 0;
+      padding: 10px 14px;
+      background: #1E1E2E;
+      color: #CDD6F4;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.5;
+      overflow-x: auto;
+      max-height: 320px;
+      overflow-y: auto;
+      border: none;
+      border-radius: 0;
+    }
+
+    /* Log queries card */
+    .log-queries-card .artifact-body {
+      background: #fff;
+      padding: 0;
+    }
+
+    /* Log queries prompt pill (shown before user expands) */
+    .log-queries-prompt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0 4px;
+      padding: 7px 12px;
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--gray-600);
+    }
+
+    .log-queries-prompt-icon { font-size: 14px; flex-shrink: 0; }
+    .log-queries-prompt-label { flex: 1; }
+
+    .log-queries-show-btn {
+      background: var(--gray-100);
+      color: var(--gray-700);
+      border: 1px solid var(--gray-300);
+      border-radius: 5px;
+      padding: 4px 11px;
+      font-size: 12px;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+
+    .log-queries-show-btn:hover { background: var(--gray-200); }
+
+    .lq-item {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .lq-item:last-child { border-bottom: none; }
+
+    .lq-desc {
+      font-weight: 500;
+      font-size: 12.5px;
+      color: var(--gray-800);
+      margin-bottom: 5px;
+    }
+
+    .lq-filter-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .lq-filter {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      background: var(--gray-100);
+      color: var(--gray-800);
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--gray-200);
+      flex: 1;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .lq-copy-btn {
+      background: var(--gray-100);
+      color: var(--gray-600);
+      border: 1px solid var(--gray-200);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+
+    .lq-copy-btn:hover { background: var(--gray-200); }
+    .lq-copy-btn.success { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+
+    .lq-meta {
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--gray-400);
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .lq-window { font-weight: 500; color: var(--blue); }
+
+    /* Generic code block copy button */
+    .code-block-wrap { position: relative; }
+
+    .code-block-actions {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      display: flex;
+      gap: 5px;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+
+    .code-block-wrap:hover .code-block-actions { opacity: 1; }
+
+    .code-action-btn {
+      background: var(--gray-800);
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 3px 9px;
+      font-size: 11px;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      opacity: .80;
+      transition: opacity .15s;
+    }
+
+    .code-action-btn:hover { opacity: 1; }
+    .code-action-btn.copied { background: var(--green); }
+
+    /* ── Resolver options card ───────────────────────────── */
+
+    .resolver-card {
+      border: 1px solid var(--blue);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin: 6px 0 4px;
+      background: #fff;
+      animation: fadeIn .2s ease;
+    }
+
+    .resolver-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 14px;
+      background: var(--blue-light);
+      border-bottom: 1px solid #C7D9F8;
+    }
+
+    .resolver-header .resolver-icon { font-size: 15px; flex-shrink: 0; }
+    .resolver-header .resolver-title { font-weight: 600; font-size: 13px; color: var(--blue-dark); flex: 1; }
+    .resolver-header .resolver-sub { font-size: 11px; color: var(--gray-600); }
+
+    .resolver-body {
+      padding: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .resolver-btn {
+      background: #fff;
+      border: 1px solid var(--blue);
+      color: var(--blue);
+      border-radius: 7px;
+      padding: 8px 12px;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      text-align: left;
+      transition: background .15s, color .15s;
+      min-width: 150px;
+      max-width: 210px;
+    }
+
+    .resolver-btn:hover:not(:disabled) { background: var(--blue); color: #fff; }
+    .resolver-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .resolver-btn-name {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .resolver-btn-desc {
+      display: block;
+      font-size: 11px;
+      opacity: .75;
+      white-space: normal;
+      line-height: 1.3;
+    }
+
+    /* ── Resolution mode bar ─────────────────────────────── */
+
+    #resolution-mode {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px 14px;
+      padding: 7px 2px 9px;
+      border-bottom: 1px solid var(--gray-200);
+      margin-bottom: 10px;
+    }
+
+    .resolution-mode-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-600);
+      white-space: nowrap;
+      margin-right: 2px;
+    }
+
+    .rm-option {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12.5px;
+      color: var(--gray-700);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .rm-option input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--blue);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .rm-option:has(input:disabled) {
+      opacity: .45;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .rm-prod-note {
+      font-size: 11px;
+      font-style: italic;
+      color: var(--amber);
+    }
+
+    .rm-note {
+      font-size: 11px;
+      color: var(--gray-400);
+    }
+
+    /* ── Scrollbar ───────────────────────────────────────── */
+    #messages::-webkit-scrollbar { width: 6px; }
+    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 3px; }
+
+    /* ── Tool drawer ─────────────────────────────────────────── */
+    #tool-drawer {
+      position: fixed;
+      inset: 0;
+      z-index: 600;
+      pointer-events: none;
+    }
+    #tool-drawer.open { pointer-events: auto; }
+
+    #tool-drawer-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.35);
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    #tool-drawer.open #tool-drawer-backdrop { opacity: 1; }
+
+    #tool-drawer-panel {
+      position: absolute;
+      top: 0; right: 0; bottom: 0;
+      width: 380px;
+      max-width: 92vw;
+      background: #fff;
+      box-shadow: -4px 0 24px rgba(0,0,0,.18);
+      transform: translateX(100%);
+      transition: transform .25s cubic-bezier(.4,0,.2,1);
+      display: flex;
+      flex-direction: column;
+    }
+    #tool-drawer.open #tool-drawer-panel { transform: translateX(0); }
+
+    #tool-drawer-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px 13px;
+      background: var(--blue-dark);
+      color: #fff;
+      flex-shrink: 0;
+    }
+    #tool-drawer-title { font-size: 14px; font-weight: 600; flex: 1; }
+    #tool-drawer-subtitle { font-size: 11px; opacity: .75; }
+    #tool-drawer-close {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      opacity: .8;
+    }
+    #tool-drawer-close:hover { opacity: 1; background: rgba(255,255,255,.15); }
+
+    #tool-drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+    #tool-drawer-body::-webkit-scrollbar { width: 5px; }
+    #tool-drawer-body::-webkit-scrollbar-track { background: transparent; }
+    #tool-drawer-body::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 3px; }
+
+    .tdr-section-heading {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--gray-600);
+      padding: 12px 16px 5px;
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-200);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .tdr-tool {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .tdr-tool:last-child { border-bottom: none; }
+
+    .tdr-icon {
+      font-size: 14px;
+      margin-top: 1px;
+      flex-shrink: 0;
+      width: 18px;
+      text-align: center;
+    }
+    .tdr-info { flex: 1; min-width: 0; }
+    .tdr-name {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--gray-900);
+      word-break: break-all;
+    }
+    .tdr-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-900);
+      margin-bottom: 1px;
+    }
+    .tdr-desc {
+      font-size: 11.5px;
+      color: var(--gray-600);
+      line-height: 1.4;
+      margin-top: 2px;
+    }
+    .tdr-scopes {
+      margin-top: 5px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .tdr-scope-tag {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid;
+    }
+    .tdr-scope-tag.missing {
+      color: #92400E;
+      background: #FEF3C7;
+      border-color: #FDE68A;
+    }
+    .tdr-scope-tag.granted {
+      color: #065F46;
+      background: #D1FAE5;
+      border-color: #A7F3D0;
+    }
+    .tdr-login-card {
+      margin: 12px 16px;
+      background: var(--blue-light);
+      border: 1px solid #C7D9F8;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .tdr-login-card .tdr-label { color: var(--blue-dark); font-size: 13px; }
+    .tdr-login-card .tdr-desc  { color: var(--gray-700); }
+    .tdr-empty {
+      padding: 14px 16px;
+      font-size: 12px;
+      color: var(--gray-600);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo"><img src="tea_okta_aura.png" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:1px;" /></div>
+    <div>
+      <h1>Okta Threat Exposure Assessment AI Assistant</h1>
+      <div class="subtitle" id="header-subtitle">Powered by AI + your Okta MCP server</div>
+    </div>
+    <select id="provider-select" title="AI provider" style="display:none"></select>
+    <div id="status-badge" class="disconnected">
+      <span class="dot"></span>
+      <span id="status-text">Connecting…</span>
+    </div>
+    <button id="clear-btn" title="Start a new conversation">New chat</button>
+  </header>
+
+  <!-- Tool drawer -->
+  <div id="tool-drawer" aria-modal="true" role="dialog" aria-label="Available tools">
+    <div id="tool-drawer-backdrop"></div>
+    <div id="tool-drawer-panel">
+      <div id="tool-drawer-header">
+        <span id="tool-drawer-title">MCP Tools</span>
+        <span id="tool-drawer-subtitle"></span>
+        <button id="tool-drawer-close" title="Close" aria-label="Close">✕</button>
+      </div>
+      <div id="tool-drawer-body">
+        <div class="tdr-empty">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Offline mode banner -->
+  <div id="offline-banner">
+    <span>⚠</span>
+    <span><strong>Offline mode</strong> — No Okta tenant connection. Remediation guidance (Terraform, Admin Console steps, log queries, Change Risk &amp; Blast Radius) is still available.</span>
+    <button class="dismiss" id="offline-dismiss" title="Dismiss">×</button>
+  </div>
+
+  <!-- Messages -->
+  <div id="messages">
+    <div class="welcome-card">
+      <strong>👋 Upload your TEA report or ask about your tenant's current configurations</strong>
+      I'll determine if the items in the TEA report have been resolved. Then, depending on your selected Resolution mode, I'll offer to fix the configuration issue, provide Terraform examples, or describe the steps to manually address it in the Okta Admin console.
+      <div class="example-prompts" id="example-prompts">
+        <button class="example-btn">Is Phishing Resistant authentication required?</button>
+        <button class="example-btn">Calculate % of recent Phishing Resistant usage</button>
+        <button class="example-btn">Is ThreatInsight enabled and blocking?</button>
+        <button class="example-btn">Evaluate my password policies</button>
+        <button class="example-btn">Are my GSP session lifetimes & idle timeouts within NIST guidelines?</button>
+        <button class="example-btn">Are high assurance authenticators enabled?</button>
+        <button class="example-btn">Check my network zone configurations</button>
+        <button class="example-btn">Is my Admin Console sign-on policy secure?</button>
+        <button class="example-btn">Do any apps use deprecated OAuth grant types?</button>
+        <button class="example-btn">Check my Account Management Policy</button>
+        <button class="example-btn">Audit Identity Threat Protection (ITP) configuration</button>
+        <button class="example-btn">Is an Identity Proofing provider configured?</button>
+        <button class="example-btn">Audit Device Assurance policies</button>
+        <button class="example-btn">Is an EDR provider connected to Okta?</button>
+        <button class="example-btn">Audit Authentication Policies for weak rules</button>
+        <button class="example-btn">Audit Authorization Servers configuration</button>
+        <button class="example-btn">Check Behavior Detection rules</button>
+        <button class="example-btn">Audit Identity Provider configurations</button>
+        <button class="example-btn">How many active API tokens are there and are they secure?</button>
+      </div>
+      <button class="tea-report-btn" id="tea-open-btn">
+        <span class="btn-icon">📋</span>
+        Review TEA report & Provide Resolution Guidance
+      </button>
+
+      <!-- TEA Report Panel -->
+      <div id="tea-panel">
+        <h3>Threat Exposure Assessment Report</h3>
+        <div class="tea-tabs">
+          <button class="tea-tab active" data-pane="upload">Upload file</button>
+          <button class="tea-tab" data-pane="path">File path</button>
+        </div>
+
+        <!-- Upload pane -->
+        <div class="tea-pane active" id="tea-pane-upload">
+          <div class="tea-drop-zone" id="tea-drop-zone">
+            <div class="drop-icon">📄</div>
+            <div><span class="drop-label">Click to select</span> or drag &amp; drop</div>
+            <div class="drop-hint">HTML or PDF · up to 25 MB</div>
+          </div>
+          <div class="tea-file-name" id="tea-file-name" style="display:none"></div>
+          <input type="file" id="tea-file-input" accept=".html,.htm,.pdf" />
+        </div>
+
+        <!-- File path pane -->
+        <div class="tea-pane" id="tea-pane-path">
+          <input
+            type="text"
+            class="tea-path-input"
+            id="tea-path-input"
+            placeholder="/Users/you/Downloads/tea-report.html"
+          />
+          <div class="tea-path-hint">Full absolute path to an HTML or PDF file on the server.</div>
+        </div>
+
+        <div class="tea-actions">
+          <button id="tea-cancel-btn" type="button">Cancel</button>
+          <button id="tea-submit-btn" type="button">Analyze Report</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <footer>
+    <div id="resolution-mode">
+      <span class="resolution-mode-label">Resolution mode:</span>
+      <label class="rm-option">
+        <input type="checkbox" id="rm-terraform" checked>
+        Terraform
+      </label>
+      <label class="rm-option">
+        <input type="checkbox" id="rm-admin-console" checked>
+        Admin Console Manual Steps
+      </label>
+      <label class="rm-option">
+        <input type="checkbox" id="rm-auto-fix" checked>
+        Fix Automatically
+        <span class="rm-note">(requires approval)</span>
+      </label>
+    </div>
+    <form id="input-form">
+      <textarea
+        id="input"
+        rows="1"
+        placeholder="Ask about your Okta tenant's security posture…"
+        autofocus
+      ></textarea>
+      <button id="send-btn" type="submit">
+        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Send
+      </button>
+    </form>
+    <div class="hint">Enter to send · Shift+Enter for new line</div>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── DOM refs ──────────────────────────────────────────────
+  const messagesEl      = document.getElementById('messages');
+  const inputEl         = document.getElementById('input');
+  const formEl          = document.getElementById('input-form');
+  const sendBtn         = document.getElementById('send-btn');
+  const clearBtn        = document.getElementById('clear-btn');
+  const statusBadge     = document.getElementById('status-badge');
+  const statusText      = document.getElementById('status-text');
+  const examplePrompts  = document.getElementById('example-prompts');
+  const rmTerraform     = document.getElementById('rm-terraform');
+  const rmAdminConsole  = document.getElementById('rm-admin-console');
+  const rmAutoFix       = document.getElementById('rm-auto-fix');
+  const providerSelect  = document.getElementById('provider-select');
+  const headerSubtitle  = document.getElementById('header-subtitle');
+
+  // ── Tool drawer ───────────────────────────────────────────
+  const toolDrawer      = document.getElementById('tool-drawer');
+  const toolDrawerBody  = document.getElementById('tool-drawer-body');
+  const toolDrawerSub   = document.getElementById('tool-drawer-subtitle');
+  const toolDrawerClose = document.getElementById('tool-drawer-close');
+  const toolDrawerBack  = document.getElementById('tool-drawer-backdrop');
+
+  function openToolDrawer() {
+    toolDrawer.classList.add('open');
+    toolDrawerBody.innerHTML = '<div class="tdr-empty">Loading…</div>';
+    document.addEventListener('keydown', onDrawerEsc);
+    fetch('/api/tools')
+      .then((r) => r.json())
+      .then(renderToolDrawer)
+      .catch(() => {
+        toolDrawerBody.innerHTML = '<div class="tdr-empty">Could not load tool list.</div>';
+      });
+  }
+
+  function closeToolDrawer() {
+    toolDrawer.classList.remove('open');
+    document.removeEventListener('keydown', onDrawerEsc);
+  }
+
+  function onDrawerEsc(e) { if (e.key === 'Escape') closeToolDrawer(); }
+
+  toolDrawerClose.addEventListener('click', closeToolDrawer);
+  toolDrawerBack.addEventListener('click', closeToolDrawer);
+  statusBadge.addEventListener('click', () => {
+    toolDrawer.classList.contains('open') ? closeToolDrawer() : openToolDrawer();
+  });
+
+  function renderToolDrawer({ tools, loggedIn, grantedScopes, offline }) {
+    const available     = tools.filter((t) => t.status === 'available');
+    const authTools     = tools.filter((t) => t.status === 'auth');
+    const missingScopes = tools.filter((t) => t.status === 'missing_scopes');
+    const authRequired  = tools.filter((t) => t.status === 'auth_required' || t.status === 'offline');
+
+    // Update subtitle
+    if (offline) {
+      toolDrawerSub.textContent = 'Offline mode';
+    } else if (loggedIn) {
+      toolDrawerSub.textContent = `${available.length} available · ${missingScopes.length} need scopes`;
+    } else {
+      toolDrawerSub.textContent = 'Not authenticated';
+    }
+
+    const html = [];
+
+    // ── okta_login block (always first, special card) ──────
+    const loginTool = tools.find((t) => t.name === 'okta_login');
+    if (loginTool) {
+      html.push(`
+        <div class="tdr-login-card">
+          <div class="tdr-label">🔑 ${escapeHtml(loginTool.label)}</div>
+          <div class="tdr-name" style="margin-bottom:4px">${escapeHtml(loginTool.name)}</div>
+          <div class="tdr-desc">${escapeHtml(loginTool.description)}</div>
+        </div>
+      `);
+    }
+
+    // ── Available ─────────────────────────────────────────
+    if (available.length) {
+      html.push(`<div class="tdr-section-heading">✓ Available (${available.length})</div>`);
+      available.forEach((t) => html.push(toolRow(t, grantedScopes)));
+    }
+
+    // ── Other auth tools (okta_get_auth_status etc.) ──────
+    const otherAuth = authTools.filter((t) => t.name !== 'okta_login');
+    if (otherAuth.length) {
+      html.push(`<div class="tdr-section-heading">Auth utilities (${otherAuth.length})</div>`);
+      otherAuth.forEach((t) => html.push(toolRow(t, grantedScopes)));
+    }
+
+    // ── Needs authentication ──────────────────────────────
+    if (authRequired.length) {
+      const label = offline ? `Offline (${authRequired.length})` : `Needs login (${authRequired.length})`;
+      html.push(`<div class="tdr-section-heading">🔒 ${label}</div>`);
+      authRequired.forEach((t) => html.push(toolRow(t, grantedScopes)));
+    }
+
+    // ── Missing scopes ────────────────────────────────────
+    if (missingScopes.length) {
+      html.push(`<div class="tdr-section-heading">⚠ Missing scopes (${missingScopes.length})</div>`);
+      missingScopes.forEach((t) => html.push(toolRow(t, grantedScopes)));
+    }
+
+    toolDrawerBody.innerHTML = html.join('');
+  }
+
+  function toolRow(tool, grantedScopes) {
+    const icons = { available: '✓', auth: '🔑', auth_required: '🔒', offline: '🔒', missing_scopes: '⚠' };
+    const icon = icons[tool.status] || '·';
+    let scopeTags = '';
+    if (tool.status === 'missing_scopes' && tool.missing.length) {
+      scopeTags = '<div class="tdr-scopes">'
+        + tool.required.map((s) => {
+            const isMissing = tool.missing.includes(s);
+            return `<span class="tdr-scope-tag ${isMissing ? 'missing' : 'granted'}">${escapeHtml(s)}</span>`;
+          }).join('')
+        + '</div>';
+    } else if (tool.status === 'available' && tool.required.length) {
+      scopeTags = '<div class="tdr-scopes">'
+        + tool.required.map((s) => `<span class="tdr-scope-tag granted">${escapeHtml(s)}</span>`).join('')
+        + '</div>';
+    }
+    return `
+      <div class="tdr-tool">
+        <span class="tdr-icon">${icon}</span>
+        <div class="tdr-info">
+          <div class="tdr-label">${escapeHtml(tool.label)}</div>
+          <div class="tdr-name">${escapeHtml(tool.name)}</div>
+          <div class="tdr-desc">${escapeHtml(tool.description)}</div>
+          ${scopeTags}
+        </div>
+      </div>`;
+  }
+
+  // ── Provider selection ────────────────────────────────────
+  let currentProvider = null;
+
+  async function loadProviders() {
+    try {
+      const r = await fetch('/api/providers');
+      const providers = await r.json();
+
+      providers.forEach((p) => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.label;
+        providerSelect.appendChild(opt);
+      });
+
+      if (providers.length > 0) {
+        currentProvider = providers[0].id;
+        providerSelect.value = currentProvider;
+        headerSubtitle.textContent = `Powered by ${providers[0].label} + your Okta MCP server`;
+      }
+
+      // Only show the dropdown when there is a real choice
+      if (providers.length > 1) providerSelect.style.display = '';
+    } catch { /* non-fatal */ }
+  }
+
+  providerSelect.addEventListener('change', async () => {
+    const newId = providerSelect.value;
+    if (newId === currentProvider) return;
+    currentProvider = newId;
+
+    // Update subtitle — preserve domain subtitle when already logged in
+    if (!currentOktaDomain) {
+      const label = providerSelect.options[providerSelect.selectedIndex]?.textContent || newId;
+      headerSubtitle.textContent = `Powered by ${label} + your Okta MCP server`;
+    }
+
+    // Clear server-side history and reset the UI
+    try { await fetch('/api/clear', { method: 'POST' }); } catch { /* ignore */ }
+    resetChatUI();
+    inputEl.focus();
+  });
+
+  loadProviders();
+
+  // ── Resolution mode helpers ───────────────────────────────
+  function resolutionMode() {
+    return {
+      terraform:    rmTerraform.checked,
+      adminConsole: rmAdminConsole.checked,
+      autoFix:      rmAutoFix.checked,
+    };
+  }
+
+
+  // Remove unwanted response sections from a rendered .md div based on current
+  // resolution mode. Matches h2 headings by keyword and strips them plus all
+  // following sibling nodes up to the next heading.
+  function applyResolutionFilter(mdDiv) {
+    const mode = resolutionMode();
+    const sectionsToHide = [];
+    if (!mode.terraform)    sectionsToHide.push('terraform fix');
+    if (!mode.adminConsole) sectionsToHide.push('how to fix it');
+    if (!mode.autoFix)      sectionsToHide.push('apply fix automatically');
+    if (sectionsToHide.length === 0) return;
+
+    const headings = Array.from(mdDiv.querySelectorAll('h1,h2,h3,h4'));
+    for (const h of headings) {
+      const text = h.textContent.toLowerCase();
+      if (!sectionsToHide.some((s) => text.includes(s))) continue;
+
+      // Collect all following siblings up to (not including) the next heading
+      const toRemove = [h];
+      let next = h.nextSibling;
+      while (next) {
+        const isHeading = next.nodeType === 1 && /^H[1-6]$/.test(next.tagName);
+        if (isHeading) break;
+        toRemove.push(next);
+        next = next.nextSibling;
+      }
+      toRemove.forEach((n) => n.remove());
+    }
+  }
+
+  // ── State ────────────────────────────────────────────────
+  let busy = false;
+  let debugMode = false;
+  let currentOktaDomain = null;
+  let currentMode = null;
+  // Per-turn streaming state
+  let currentBubble     = null; // the .bubble div for the active assistant turn
+  let currentTextEl     = null; // current div.md receiving text tokens
+  let cursorEl          = null; // the blinking cursor
+  let streamRenderTimer = null; // throttle handle for progressive markdown render
+  const pendingToolCards = new Map(); // toolUseId → card element
+  const textSegments    = new Map(); // el → accumulated raw text
+
+  // ── Utilities ────────────────────────────────────────────
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function scrollBottom(force = false) {
+    const el = messagesEl;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (force || nearBottom) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }
+
+  function formatJson(raw) {
+    try {
+      return JSON.stringify(JSON.parse(raw), null, 2);
+    } catch {
+      return raw;
+    }
+  }
+
+  function summariseResult(raw) {
+    // Return a one-line human summary for the tool result header
+    try {
+      const obj = JSON.parse(raw);
+      if (obj.ok === false && obj.error) return `Error: ${obj.error}`;
+
+      // Syslog query
+      if (obj.ok === true && obj.count !== undefined) return `${obj.count} event${obj.count === 1 ? '' : 's'} returned`;
+
+      // Network zones
+      if (obj.ok === true && obj.zones) return `${obj.zones.length} zone${obj.zones.length === 1 ? '' : 's'} returned`;
+
+      // ThreatInsight
+      if (obj.ok === true && obj.config) return 'ThreatInsight configuration retrieved';
+
+      // Password policy audit
+      if (obj.ok === true && obj.summary?.totalPolicies !== undefined && obj.policies) {
+        const f = obj.summary.totalFindings || 0;
+        const h = obj.summary.highFindings || 0;
+        const p = obj.summary.totalPolicies;
+        return `${p} polic${p === 1 ? 'y' : 'ies'} — ${f} finding${f === 1 ? '' : 's'}${h > 0 ? ` (${h} high)` : ''}`;
+      }
+
+      // Session policy audit
+      if (obj.ok === true && obj.summary?.totalRules !== undefined) {
+        const f = obj.summary.totalFindings || 0;
+        const r = obj.summary.totalRules;
+        return `${r} rule${r === 1 ? '' : 's'} audited — ${f} finding${f === 1 ? '' : 's'}`;
+      }
+
+      // Authenticator audit
+      if (obj.ok === true && obj.summary?.totalAuthenticators !== undefined) {
+        const f = obj.summary.oktaVerifyFindings || 0;
+        const a = obj.summary.totalAuthenticators;
+        return `${a} authenticator${a === 1 ? '' : 's'}${f > 0 ? ` — ${f} finding${f === 1 ? '' : 's'}` : ' — no findings'}`;
+      }
+
+      // Security General audit
+      if (obj.ok === true && obj.summary?.findingCount !== undefined && obj.findings) {
+        const f = obj.summary.findingCount;
+        return `${f} finding${f === 1 ? '' : 's'} — manual steps provided`;
+      }
+
+      // Admin console policy audit
+      if (obj.ok === true && obj.summary?.appLabel !== undefined && obj.summary?.policyName !== undefined) {
+        const f = obj.summary.totalFindings || 0;
+        const h = obj.summary.highFindings || 0;
+        const r = obj.summary.totalRules || 0;
+        return `Admin Console — ${r} rule${r === 1 ? '' : 's'} audited, ${f} finding${f === 1 ? '' : 's'}${h > 0 ? ` (${h} high)` : ''}`;
+      }
+
+      // Admin console policy rule update
+      if (obj.ok === true && obj.policyId && obj.ruleId && obj.appliedChanges !== undefined) {
+        const n = Object.keys(obj.appliedChanges).length;
+        return `Admin Console policy rule updated — ${n} change${n === 1 ? '' : 's'} applied`;
+      }
+
+      // Policy / rule update (write tools with appliedChanges)
+      if (obj.ok === true && obj.policyName && obj.appliedChanges !== undefined) {
+        const n = Object.keys(obj.appliedChanges).length;
+        return `"${obj.policyName}" updated — ${n} change${n === 1 ? '' : 's'} applied`;
+      }
+
+      // Authenticator update
+      if (obj.ok === true && obj.authenticatorId && obj.appliedChanges !== undefined) {
+        const n = Object.keys(obj.appliedChanges).length;
+        return `Authenticator updated — ${n} change${n === 1 ? '' : 's'} applied`;
+      }
+
+      // Security general enable tools (apiAvailable flag)
+      if (obj.ok === true && obj.message && obj.apiAvailable !== undefined) {
+        return obj.apiAvailable ? obj.message : `${obj.message.slice(0, 80)}`;
+      }
+
+      // Security notification emails audit
+      if (obj.ok === true && obj.emailSettings !== undefined) {
+        const f = obj.summary?.findingCount ?? 0;
+        return `Security notification emails — ${f} finding${f === 1 ? '' : 's'}`;
+      }
+
+      // Account management policy audit
+      if (obj.ok === true && obj.summary?.policyName !== undefined && obj.summary?.totalRules !== undefined && obj.rules !== undefined) {
+        const f = obj.summary.totalFindings || 0;
+        const h = obj.summary.highFindings || 0;
+        const r = obj.summary.totalRules || 0;
+        return `Account Management Policy — ${r} rule${r === 1 ? '' : 's'} audited, ${f} finding${f === 1 ? '' : 's'}${h > 0 ? ` (${h} high)` : ''}`;
+      }
+
+      // Device Assurance audit
+      if (obj.ok === true && obj.summary?.totalPolicies !== undefined && obj.appendixBCoverage !== undefined) {
+        const p = obj.summary.totalPolicies;
+        const covered = obj.summary.coveredChecksCount || 0;
+        const total = obj.summary.recommendedChecksTotal || 16;
+        const f = obj.findingCount || 0;
+        return `${p} polic${p === 1 ? 'y' : 'ies'} — ${covered}/${total} Appendix B checks covered${f > 0 ? `, ${f} finding${f === 1 ? '' : 's'}` : ''}`;
+      }
+
+      // Device Assurance create
+      if (obj.ok === true && obj.policyId && obj.platform && obj.appliedChecks !== undefined) {
+        return `"${obj.policyName}" created for ${obj.platform}`;
+      }
+
+      // ITP config audit
+      if (obj.ok === true && obj.summary?.findingCount !== undefined && obj.itpStatus !== undefined) {
+        const f = obj.summary.findingCount;
+        return `ITP — ${f} finding${f === 1 ? '' : 's'} (Session Protection, Universal Logout, Workflows)`;
+      }
+
+      // Identity Proofing audit
+      if (obj.ok === true && obj.summary?.idvProvidersConfigured !== undefined && obj.idvProviders !== undefined) {
+        const idv = obj.summary.idvProvidersConfigured;
+        const f = obj.summary.findingCount || 0;
+        return `${idv} IDV provider${idv === 1 ? '' : 's'} configured — ${f} finding${f === 1 ? '' : 's'}`;
+      }
+
+      // Device Integration audit
+      if (obj.ok === true && obj.summary?.hasEDRIntegration !== undefined && obj.edrStatus !== undefined) {
+        const f = obj.summary.findingCount || 0;
+        const edr = obj.summary.hasEDRIntegration ? 'EDR connected' : 'no EDR provider';
+        return `${edr} — ${f} finding${f === 1 ? '' : 's'}`;
+      }
+
+      // OAuth grants audit
+      if (obj.ok === true && obj.summary?.flaggedCount !== undefined && obj.flaggedApps !== undefined) {
+        const f = obj.summary.flaggedCount;
+        const t = obj.summary.totalScanned;
+        return `${t} app${t === 1 ? '' : 's'} scanned — ${f} with insecure grant type${f === 1 ? '' : 's'}`;
+      }
+
+      // OAuth grant removal
+      if (obj.ok === true && obj.removedGrants !== undefined) {
+        const n = obj.removedGrants.length;
+        return `Removed ${n} grant type${n === 1 ? '' : 's'} from "${obj.appName}"`;
+      }
+
+      // Generic success with a message
+      if (obj.ok === true && obj.message) return obj.message;
+
+      if (obj.ok === true) return 'Success';
+    } catch { /* fall through */ }
+    const truncated = raw.length > 80 ? raw.slice(0, 80) + '…' : raw;
+    return truncated;
+  }
+
+  // ── Status check ─────────────────────────────────────────
+
+  let isProdMode    = false;
+  let isOfflineMode = false;
+
+  function applyProductionMode() {
+    isProdMode = true;
+    // Only "Fix Automatically" is disabled in production — Terraform and Admin
+    // Console steps are still available since they are read-only guidance.
+    rmAutoFix.checked  = false;
+    rmAutoFix.disabled = true;
+    // Remove the "(requires approval)" note since the checkbox is now greyed out
+    const autoFixNote = rmAutoFix.closest('.rm-option')?.querySelector('.rm-note');
+    if (autoFixNote) autoFixNote.remove();
+    // Add a small inline note explaining why it is disabled
+    const bar = document.getElementById('resolution-mode');
+    if (bar && !bar.querySelector('.rm-prod-note')) {
+      const note = document.createElement('span');
+      note.className = 'rm-prod-note';
+      note.textContent = 'auto-fix disabled in production';
+      bar.appendChild(note);
+    }
+  }
+
+  function applyOfflineMode() {
+    if (isOfflineMode) return;
+    isOfflineMode = true;
+
+    // Badge: amber dot + "Offline mode" label
+    statusBadge.classList.remove('disconnected');
+    statusBadge.classList.add('offline-mode');
+    statusText.textContent = 'Offline mode';
+
+    // Subtitle
+    headerSubtitle.textContent = 'Offline mode — remediation guidance only (no tenant connection)';
+
+    // Show dismissible banner
+    const banner = document.getElementById('offline-banner');
+    if (banner) banner.classList.add('visible');
+    document.getElementById('offline-dismiss')?.addEventListener('click', () => {
+      banner.classList.remove('visible');
+    });
+
+    // Disable "Fix Automatically" — write tools are unavailable offline
+    rmAutoFix.checked  = false;
+    rmAutoFix.disabled = true;
+    const autoFixNote = rmAutoFix.closest('.rm-option')?.querySelector('.rm-note');
+    if (autoFixNote) autoFixNote.remove();
+    const bar = document.getElementById('resolution-mode');
+    if (bar && !bar.querySelector('.rm-offline-note')) {
+      const note = document.createElement('span');
+      note.className = 'rm-prod-note rm-offline-note';
+      note.textContent = 'auto-fix unavailable in offline mode';
+      bar.appendChild(note);
+    }
+
+    // Update welcome card text
+    const wc = document.querySelector('.welcome-card strong');
+    if (wc) wc.textContent = '📋 Upload your TEA report or ask about Okta security best practices';
+    const wcBody = document.querySelector('.welcome-card');
+    if (wcBody) {
+      const desc = wcBody.childNodes[1];
+      if (desc && desc.nodeType === Node.TEXT_NODE) {
+        desc.textContent = " I'm running in offline mode — I can't check your live tenant. Upload a TEA report for a full findings review, or ask me about any Okta security domain to get Terraform, Admin Console steps, and risk guidance.";
+      }
+    }
+
+    // Update textarea placeholder
+    const input = document.getElementById('input');
+    if (input) input.placeholder = 'Ask about Okta security best practices or upload a TEA report…';
+  }
+
+  function tenantSubtitle(domain) {
+    const modeLabel = currentMode === 'prod' ? '(Prod)' : currentMode === 'dev' ? '(Dev)' : null;
+    return `Evaluating Okta tenant: ${domain}${modeLabel ? ` ${modeLabel}` : ''}`;
+  }
+
+  async function checkStatus() {
+    try {
+      const r = await fetch('/api/status');
+      const data = await r.json();
+      debugMode = !!data.debug;
+      if (data.offline) {
+        applyOfflineMode();
+        return;
+      }
+      if (data.connected && data.tools.length > 0) {
+        statusBadge.classList.remove('disconnected');
+        statusText.textContent = `${data.tools.length} tools`;
+      } else {
+        statusBadge.classList.add('disconnected');
+        statusText.textContent = 'MCP offline';
+      }
+      if (data.mode && data.mode !== currentMode) {
+        currentMode = data.mode;
+        if (currentOktaDomain) headerSubtitle.textContent = tenantSubtitle(currentOktaDomain);
+      }
+      if (data.mode === 'prod' && !isProdMode) applyProductionMode();
+    } catch {
+      statusBadge.classList.add('disconnected');
+      statusText.textContent = 'Offline';
+    }
+  }
+
+  checkStatus();
+  checkAuthAndAutoLogin();
+
+  // ── Message rendering ────────────────────────────────────
+
+  function addUserMessage(text) {
+    const row = document.createElement('div');
+    row.className = 'message-row user';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    avatar.textContent = 'You';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;  // plain text — safe
+
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    scrollBottom(true);
+  }
+
+  function ensureAssistantBubble() {
+    if (currentBubble) return currentBubble;
+
+    const row = document.createElement('div');
+    row.className = 'message-row assistant';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    avatar.textContent = 'AI';
+
+    currentBubble = document.createElement('div');
+    currentBubble.className = 'bubble';
+
+    // Add blinking cursor placeholder
+    cursorEl = document.createElement('span');
+    cursorEl.className = 'cursor';
+    currentBubble.appendChild(cursorEl);
+
+    row.appendChild(avatar);
+    row.appendChild(currentBubble);
+    messagesEl.appendChild(row);
+    scrollBottom(true);
+
+    return currentBubble;
+  }
+
+  function renderMdEl(el) {
+    const raw = textSegments.get(el);
+    if (!raw || !window.marked) return;
+    el.innerHTML = DOMPurify.sanitize(marked.parse(raw).replace(
+      /<table>/g, '<div class="table-wrap"><table>'
+    ).replace(/<\/table>/g, '</table></div>'));
+    scrollBottom();
+  }
+
+  function appendTextToken(text) {
+    const bubble = ensureAssistantBubble();
+
+    if (!currentTextEl) {
+      // Use div.md from the start so markdown renders progressively
+      currentTextEl = document.createElement('div');
+      currentTextEl.className = 'md';
+      bubble.insertBefore(currentTextEl, cursorEl);
+      textSegments.set(currentTextEl, '');
+    }
+
+    textSegments.set(currentTextEl, (textSegments.get(currentTextEl) || '') + text);
+
+    // Throttle: schedule one render per 100 ms; if a timer is already pending,
+    // let it run — it will pick up all tokens accumulated since it was set.
+    if (window.marked && !streamRenderTimer) {
+      const el = currentTextEl;
+      streamRenderTimer = setTimeout(() => {
+        streamRenderTimer = null;
+        renderMdEl(el);
+      }, 100);
+    }
+  }
+
+  function flushTextEl() {
+    // Called before inserting a tool card — subsequent text goes in a new div.md
+    currentTextEl = null;
+  }
+
+  function addToolCard(id, name, input) {
+    const bubble = ensureAssistantBubble();
+    flushTextEl();  // next text tokens will start a new span
+
+    if (!debugMode) {
+      // Placeholder — replaced with an error card if the call fails.
+      pendingToolCards.set(id, { _debug: false, _bubble: bubble, _name: name });
+      return;
+    }
+
+    const inputJson = typeof input === 'object'
+      ? JSON.stringify(input, null, 2)
+      : String(input);
+
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+
+    card.innerHTML = `
+      <div class="tool-card-header">
+        <span class="icon">⚡</span>
+        <span class="tool-name">${escapeHtml(name)}</span>
+        <span class="tool-status status-calling">calling…</span>
+      </div>
+      <div class="tool-body">
+        <div class="tool-section-label">Input</div>
+        <pre class="tool-code">${escapeHtml(inputJson)}</pre>
+      </div>
+    `;
+
+    // Insert before cursor
+    bubble.insertBefore(card, cursorEl);
+    pendingToolCards.set(id, card);
+    scrollBottom();
+  }
+
+  function resolveToolCard(id, name, result) {
+    const entry = pendingToolCards.get(id);
+    if (!entry) return;
+
+    // Check if the tool returned an error payload.
+    let isError = false;
+    let errorDetail = '';
+    try {
+      const p = JSON.parse(result);
+      if (p && p.ok === false) {
+        isError = true;
+        errorDetail = p.error || 'Unknown error';
+      }
+    } catch { /* not JSON */ }
+
+    // Non-debug mode: only surface errors; silently discard successful calls.
+    if (!debugMode) {
+      if (!isError) return;
+      // Build a minimal error card so the user knows something went wrong.
+      const bubble = entry._bubble || ensureAssistantBubble();
+      const errCard = document.createElement('div');
+      errCard.className = 'tool-card';
+      const code = (errorDetail.match(/\b(4\d{2})\b/) || [])[1];
+      let errorHint = '';
+      if (code === '403') errorHint = '403 Forbidden — grant the missing API scope in Admin Console → Applications → [Your App] → Okta API Scopes, then run okta_login again.';
+      else if (code === '401') errorHint = '401 Unauthorized — access token is missing or expired. Run okta_login to re-authenticate.';
+      else if (code) errorHint = `HTTP ${code} — check the server console for details.`;
+      errCard.innerHTML = `
+        <div class="tool-card-header">
+          <span class="icon">✗</span>
+          <span class="tool-name">${escapeHtml(name)}</span>
+          <span class="tool-status status-error">error</span>
+        </div>
+        <div class="tool-body">
+          <div style="font-size:13px;color:var(--red);margin-bottom:4px">${escapeHtml(errorDetail)}</div>
+          ${errorHint ? `<div style="font-size:12px;color:var(--red);padding:6px 8px;background:var(--red-bg);border-radius:6px;border:1px solid #FECACA;">${escapeHtml(errorHint)}</div>` : ''}
+        </div>
+      `;
+      bubble.insertBefore(errCard, cursorEl);
+      scrollBottom();
+      return;
+    }
+
+    const card = entry;
+
+    const statusEl = card.querySelector('.tool-status');
+    if (isError) {
+      statusEl.textContent = 'error';
+      statusEl.className = 'tool-status status-error';
+      card.querySelector('.icon').textContent = '✗';
+    } else {
+      statusEl.textContent = 'done';
+      statusEl.className = 'tool-status status-done';
+      card.querySelector('.icon').textContent = '✓';
+    }
+
+    const summary = summariseResult(result);
+    const fullJson = formatJson(result);
+    const isLong  = fullJson.length > 200;
+
+    // Build a human-readable hint for common HTTP errors.
+    let errorHint = '';
+    if (isError) {
+      const code = (errorDetail.match(/\b(4\d{2})\b/) || [])[1];
+      if (code === '403') {
+        errorHint = '403 Forbidden — the Okta app is missing API scope grants for this operation. ' +
+          'Go to Admin Console → Applications → [Your App] → Okta API Scopes, grant the missing scope, then run okta_login again.';
+      } else if (code === '401') {
+        errorHint = '401 Unauthorized — access token is missing or expired. Run okta_login to re-authenticate.';
+      } else if (code) {
+        errorHint = `HTTP ${code} — check the server console for details.`;
+      }
+    }
+
+    const resultSection = document.createElement('div');
+    resultSection.className = 'tool-result-section';
+    resultSection.innerHTML = `
+      <div class="tool-section-label" style="margin-top:8px">Result</div>
+      <div style="font-size:13px;color:${isError ? 'var(--red)' : 'var(--gray-600)'};margin-bottom:4px">${escapeHtml(summary)}</div>
+      ${errorHint ? `<div style="font-size:12px;color:var(--red);margin-bottom:6px;padding:6px 8px;background:var(--red-bg);border-radius:6px;border:1px solid #FECACA;">${escapeHtml(errorHint)}</div>` : ''}
+      ${isLong ? `
+        <button class="tool-result-toggle" type="button">
+          <span class="toggle-icon">▶</span> Show full result
+        </button>
+        <pre class="tool-code tool-result-full">${escapeHtml(fullJson)}</pre>
+      ` : `
+        <pre class="tool-code">${escapeHtml(fullJson)}</pre>
+      `}
+    `;
+
+    card.querySelector('.tool-body').appendChild(resultSection);
+
+    if (isLong) {
+      const btn = resultSection.querySelector('.tool-result-toggle');
+      const pre = resultSection.querySelector('.tool-result-full');
+      btn.addEventListener('click', () => {
+        const open = pre.classList.toggle('expanded');
+        btn.querySelector('.toggle-icon').textContent = open ? '▼' : '▶';
+        btn.childNodes[1].textContent = open ? ' Hide' : ' Show full result';
+        scrollBottom();
+      });
+    }
+
+    pendingToolCards.delete(id);
+    flushTextEl();  // text after the result goes in a new span
+    scrollBottom();
+  }
+
+  function markToolError(id) {
+    const entry = pendingToolCards.get(id);
+    if (!entry) return;
+    if (entry._debug === false) { pendingToolCards.delete(id); return; }
+    const s = entry.querySelector('.tool-status');
+    s.textContent = 'error';
+    s.className = 'tool-status status-error';
+    entry.querySelector('.icon').textContent = '✗';
+    pendingToolCards.delete(id);
+  }
+
+  function finishAssistantTurn() {
+    // Cancel any in-flight throttle render — we're about to do the definitive one
+    if (streamRenderTimer) {
+      clearTimeout(streamRenderTimer);
+      streamRenderTimer = null;
+    }
+
+    if (cursorEl) {
+      cursorEl.remove();
+      cursorEl = null;
+    }
+
+    if (window.marked) {
+      for (const [el, rawText] of textSegments) {
+        if (!rawText.trim()) continue;
+        // el is already a div.md — final render with copy buttons and resolution filter
+        el.innerHTML = DOMPurify.sanitize(marked.parse(rawText).replace(
+          /<table>/g,
+          '<div class="table-wrap"><table>'
+        ).replace(/<\/table>/g, '</table></div>'));
+        decorateCodeBlocks(el);
+        applyResolutionFilter(el);
+      }
+    }
+
+    textSegments.clear();
+    currentBubble  = null;
+    currentTextEl  = null;
+    pendingToolCards.clear();
+  }
+
+  // Derive a .tf download filename from the first comment line of HCL code.
+  // "# Terraform — Okta Password Policy (TEA hardening)" → "okta_password_policy.tf"
+  function hclFilename(text) {
+    const m = text.match(/^#\s*Terraform\s*[—\-]\s*Okta\s+(.+?)\s+\(/mi);
+    if (m) return 'okta_' + m[1].toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') + '.tf';
+    return 'okta_config.tf';
+  }
+
+  // Add copy (and download for HCL) buttons to every code block in a rendered markdown div.
+  function decorateCodeBlocks(mdDiv) {
+    mdDiv.querySelectorAll('pre').forEach((pre) => {
+      const code = pre.querySelector('code');
+      if (!code) return;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'code-block-wrap';
+      pre.parentNode.insertBefore(wrap, pre);
+      wrap.appendChild(pre);
+
+      const actions = document.createElement('div');
+      actions.className = 'code-block-actions';
+
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'code-action-btn';
+      copyBtn.type = 'button';
+      copyBtn.textContent = 'Copy';
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(code.innerText).then(() => {
+          copyBtn.textContent = 'Copied!';
+          copyBtn.classList.add('copied');
+          setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('copied'); }, 1800);
+        }).catch(() => {});
+      });
+      actions.appendChild(copyBtn);
+
+      // Add a Download button for Terraform/HCL code blocks.
+      const isHcl = code.classList.contains('language-hcl') ||
+                    code.classList.contains('language-terraform') ||
+                    code.innerText.trimStart().startsWith('# Terraform');
+      if (isHcl) {
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'code-action-btn';
+        dlBtn.type = 'button';
+        dlBtn.textContent = '⬇ Download';
+        dlBtn.addEventListener('click', () => {
+          const filename = hclFilename(code.innerText);
+          const blob = new Blob([code.innerText], { type: 'text/plain' });
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(url);
+        });
+        actions.appendChild(dlBtn);
+      }
+
+      wrap.appendChild(actions);
+    });
+  }
+
+  function buildLogQueriesCard(queries) {
+    const card = document.createElement('div');
+    card.className = 'artifact-card log-queries-card';
+
+    const header = document.createElement('div');
+    header.className = 'artifact-header';
+    header.innerHTML = `
+      <span class="artifact-icon">🔍</span>
+      <span class="artifact-title">Log Queries</span>
+      <span class="artifact-subtitle">Reports → System Log</span>
+    `;
+    card.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'artifact-body';
+
+    for (const q of queries) {
+      const item = document.createElement('div');
+      item.className = 'lq-item';
+
+      const filterText = q.filter || '';
+
+      item.innerHTML = `
+        <div class="lq-desc">${escapeHtml(q.description || '')}</div>
+        <div class="lq-filter-row">
+          <code class="lq-filter">${escapeHtml(filterText)}</code>
+          <button class="lq-copy-btn" type="button">Copy</button>
+        </div>
+        <div class="lq-meta">
+          <span class="lq-window">${escapeHtml(q.timeWindow || '')}</span>
+          ${q.note ? `<span>${escapeHtml(q.note)}</span>` : ''}
+        </div>
+      `;
+
+      item.querySelector('.lq-copy-btn').addEventListener('click', function () {
+        navigator.clipboard.writeText(filterText).then(() => {
+          this.textContent = 'Copied!';
+          this.classList.add('success');
+          setTimeout(() => { this.textContent = 'Copy'; this.classList.remove('success'); }, 1800);
+        }).catch(() => {});
+      });
+
+      body.appendChild(item);
+    }
+
+    card.appendChild(body);
+    return card;
+  }
+
+  function addLogQueriesPrompt(queries) {
+    const bubble = ensureAssistantBubble();
+    flushTextEl();
+
+    const prompt = document.createElement('div');
+    prompt.className = 'log-queries-prompt';
+    prompt.innerHTML = `
+      <span class="log-queries-prompt-icon">🔍</span>
+      <span class="log-queries-prompt-label">Log queries are available for this check</span>
+      <button class="log-queries-show-btn" type="button">Show log queries</button>
+    `;
+
+    prompt.querySelector('.log-queries-show-btn').addEventListener('click', () => {
+      const card = buildLogQueriesCard(queries);
+      prompt.parentNode.replaceChild(card, prompt);
+      scrollBottom();
+    });
+
+    bubble.insertBefore(prompt, cursorEl);
+    scrollBottom();
+  }
+
+  function addErrorMessage(msg) {
+    const div = document.createElement('div');
+    div.className = 'error-msg';
+    div.textContent = '⚠ ' + msg;
+    messagesEl.appendChild(div);
+    scrollBottom(true);
+  }
+
+  // ── SSE stream consumer ───────────────────────────────────
+
+  async function* readSSE(response) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        let boundary;
+        while ((boundary = buffer.indexOf('\n\n')) !== -1) {
+          const block = buffer.slice(0, boundary);
+          buffer = buffer.slice(boundary + 2);
+
+          if (!block.trim()) continue;
+
+          let eventType = 'message';
+          let eventData = '';
+
+          for (const line of block.split('\n')) {
+            if (line.startsWith('event: ')) {
+              eventType = line.slice(7).trim();
+            } else if (line.startsWith('data: ')) {
+              eventData = line.slice(6);
+            }
+          }
+
+          if (eventData) {
+            try {
+              yield { type: eventType, data: JSON.parse(eventData) };
+            } catch {
+              // malformed JSON — skip
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
+  // ── Send message ──────────────────────────────────────────
+
+  async function sendMessage(text) {
+    if (busy || !text.trim()) return;
+    busy = true;
+    setUIBusy(true);
+
+    addUserMessage(text);
+
+    let response;
+    try {
+      response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, provider: currentProvider }),
+      });
+    } catch (err) {
+      addErrorMessage('Network error: ' + err.message);
+      busy = false;
+      setUIBusy(false);
+      return;
+    }
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      addErrorMessage(`Server error ${response.status}: ${body}`);
+      busy = false;
+      setUIBusy(false);
+      return;
+    }
+
+    try {
+      for await (const { type, data } of readSSE(response)) {
+        switch (type) {
+          case 'text_delta':
+            appendTextToken(data.text);
+            break;
+
+          case 'tool_call':
+            addToolCard(data.id, data.name, data.input);
+            break;
+
+          case 'tool_result':
+            resolveToolCard(data.id, data.name, data.result);
+            break;
+
+          case 'log_queries_available':
+            addLogQueriesPrompt(data.queries);
+            break;
+
+          case 'done':
+            finishAssistantTurn();
+            break;
+
+          case 'error':
+            finishAssistantTurn();
+            addErrorMessage(data.message);
+            break;
+        }
+      }
+    } catch (err) {
+      finishAssistantTurn();
+      addErrorMessage('Stream error: ' + err.message);
+    }
+
+    busy = false;
+    setUIBusy(false);
+    inputEl.focus();
+  }
+
+  // ── UI helpers ────────────────────────────────────────────
+
+  function setUIBusy(isBusy) {
+    inputEl.disabled = isBusy;
+    sendBtn.disabled = isBusy;
+    sendBtn.innerHTML = isBusy
+      ? `<svg viewBox="0 0 24 24" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke-width="2" stroke="rgba(255,255,255,.3)"/><path d="M12 2a10 10 0 0 1 10 10" stroke="white" stroke-width="2"/></svg> Working…`
+      : `<svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send`;
+    // Keep resolver buttons in sync with busy state
+    if (activeResolverCard) {
+      activeResolverCard.querySelectorAll('.resolver-btn').forEach((b) => { b.disabled = isBusy; });
+    }
+  }
+
+  // Auto-grow textarea
+  inputEl.addEventListener('input', () => {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
+  });
+
+  // Submit on Enter (Shift+Enter = new line)
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      formEl.dispatchEvent(new Event('submit'));
+    }
+  });
+
+  formEl.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = inputEl.value.trim();
+    if (!text || busy) return;
+    inputEl.value = '';
+    inputEl.style.height = '';
+    sendMessage(text);
+  });
+
+  // Example prompts
+  examplePrompts.addEventListener('click', (e) => {
+    if (e.target.classList.contains('example-btn')) {
+      const text = e.target.textContent;
+      inputEl.value = text;
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
+      inputEl.focus();
+      // Auto-send on click
+      formEl.dispatchEvent(new Event('submit'));
+    }
+  });
+
+  // Reusable UI reset (does NOT call /api/clear — caller handles that)
+  function resetChatUI() {
+    Array.from(messagesEl.children).forEach((n) => {
+      if (!n.classList.contains('welcome-card')) n.remove();
+    });
+    currentBubble = null;
+    currentTextEl = null;
+    cursorEl = null;
+    pendingToolCards.clear();
+    textSegments.clear();
+    busy = false;
+    setUIBusy(false);
+  }
+
+  // Clear chat
+  clearBtn.addEventListener('click', async () => {
+    try { await fetch('/api/clear', { method: 'POST' }); } catch { /* ignore */ }
+    resetChatUI();
+    inputEl.focus();
+  });
+
+  // Refresh status every 30 s
+  setInterval(checkStatus, 30_000);
+
+  // Inject spin keyframe for loading button
+  const style = document.createElement('style');
+  style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+  document.head.appendChild(style);
+
+  // ── Resolver options card ─────────────────────────────────
+
+  // Maps each tool name to the chat message sent when the button is clicked.
+  const TOOL_PROMPTS = {
+    // ThreatInsight
+    okta_get_threatinsight_config:
+      'Check the current ThreatInsight configuration and provide recommendations.',
+    okta_set_threatinsight_blocking:
+      'Enable ThreatInsight blocking mode on this Okta tenant.',
+    // Network zones
+    okta_list_network_zones:
+      'List all network zones and check their current configuration.',
+    okta_get_network_zone:
+      'Get the details of the network zone related to this finding.',
+    okta_block_countries:
+      'Help configure country blocking based on the TEA recommendations.',
+    okta_configure_security_blocklist:
+      'Configure security blocklists for TOR proxies and sanctioned countries.',
+    // Password policies
+    okta_list_password_policies:
+      'Audit all password policies for TEA compliance — check minimum length, brute force protection, lockout settings, and notification configuration.',
+    okta_update_password_policy:
+      'Harden the password policy identified in the TEA report: set minimum length to 15, enable brute force protection, and turn on lockout notifications.',
+    // Session policies
+    okta_list_session_policies:
+      'Audit all Global Session Policies — check MFA requirements, session lifetimes against the NIST 720-minute recommendation, and idle timeout settings.',
+    okta_update_session_policy_rule:
+      'Update the session policy rule from the TEA report to enforce MFA and reduce the session lifetime to the recommended value.',
+    // Authenticators
+    okta_list_authenticators:
+      'Check all authenticators — confirm Okta Verify Number Challenge is enabled to prevent push bombing and MFA fatigue attacks.',
+    okta_update_okta_verify_settings:
+      'Enable Number Challenge for Okta Verify push notifications to defend against MFA fatigue attacks.',
+    // Security general
+    okta_get_security_general_settings:
+      'Audit Security General settings — check if unknown device blocking and suspicious activity email reporting are enabled.',
+    okta_enable_suspicious_device_blocking:
+      'Enable "Block suspicious password attempts from unknown devices" to defend against distributed brute force attacks from new devices.',
+    okta_enable_suspicious_activity_reporting:
+      'Enable "Report suspicious activity via email" so users can flag unexpected sign-in events directly to your security team.',
+    // Admin console policy
+    okta_list_admin_console_policy:
+      'Audit the Okta Admin Console sign-on policy — check whether MFA is required and re-authentication is capped for admin sessions.',
+    okta_update_admin_console_policy_rule:
+      'Harden the Admin Console sign-on policy rule: enforce MFA (factorMode: "2FA") and cap re-authentication to 4 hours to limit stolen session exposure.',
+    // Security notification emails
+    okta_get_security_notification_emails:
+      'Audit Security Notification Email settings — check that suspicious activity reporting, new device sign-in, password change, and factor enrollment notification emails are enabled.',
+    // OAuth grants
+    okta_list_apps_insecure_grants:
+      'Audit all active Okta apps for insecure OAuth grant types (Password and Implicit). These are deprecated per RFC 9700 and should be replaced with Authorization Code + PKCE.',
+    okta_remove_insecure_grants:
+      'Remove Password and/or Implicit OAuth grant types from the app identified in the audit. Confirm with the app owner and check System Log for active usage before applying.',
+    // Logs / syslog analysis
+    okta_query_syslogs:
+      'Query the Okta System Log to investigate this finding. What filter expression should I use?',
+    okta_get_phishing_resistant_usage:
+      'Calculate Phishing Resistant usage in the last 24 hours',
+    // Account management policy
+    okta_list_account_management_policy:
+      'Audit the Account Management Policy — check whether self-service password reset and recovery flows require phishing-resistant possession factors (Okta Verify or WebAuthn).',
+    okta_update_account_management_policy_rule:
+      'Update the Account Management Policy rule to require phishing-resistant possession factors (Okta Verify or WebAuthn/FIDO2) for self-service password reset and recovery flows.',
+    // Identity Threat Protection (ITP)
+    okta_get_itp_config:
+      'Audit Identity Threat Protection configuration — check ITP Session Protection (TERMINATE_SESSION action), Universal Logout, and Workflow detections.',
+    okta_enable_itp_session_protection:
+      'Enable ITP Session Protection to terminate suspicious sessions — update Continuous Access Evaluation policy rules to TERMINATE_SESSION for high-risk events.',
+    okta_enable_itp_universal_logout:
+      'Enable ITP Universal Logout to automatically terminate sessions across all applications when suspicious activity is detected.',
+    // Identity Proofing
+    okta_get_identity_proofing_config:
+      'Audit Identity Proofing configuration — check whether an Identity Verification provider (Persona, Incode, Clear) is configured and whether enrollment and recovery policies require identity verification.',
+    // Device Assurance
+    okta_list_device_assurance_policies:
+      'Audit Device Assurance policies — check all platforms (Android, iOS, macOS, Windows) for jailbreak detection, disk encryption, screen lock, secure hardware presence, and OS version minimums.',
+    okta_create_device_assurance_policy:
+      'Create a Device Assurance policy with all recommended security checks. Specify the platform: ANDROID, IOS, MACOS, or WINDOWS.',
+    // Device Integration / EDR
+    okta_get_device_integration_config:
+      'Audit Device Integration and EDR configuration — check whether an Endpoint Detection and Response provider (CrowdStrike, Microsoft Defender, Carbon Black, SentinelOne) is connected and whether Authentication Policies use device risk signals.',
+    // Attack Protection
+    okta_get_attack_protection:
+      'Audit Attack Protection settings — check whether Breached Password Detection and Username Enumeration Protection are enabled.',
+    // Authentication Policies
+    okta_list_authentication_policies:
+      'Audit all Authentication Policies (app sign-on policies) — check for overly permissive rules, missing MFA requirements, and catch-all rules that allow any authenticator.',
+    // Authorization Servers
+    okta_list_authorization_servers:
+      'Audit Authorization Servers — check for servers using the default scaffold audience (api://default), missing access policies, and policy rules without audience restrictions.',
+    // Behavior Detection
+    okta_get_behavior_detection:
+      'Audit Behavior Detection configuration — check whether New Device, New City, and Velocity behavior rules are active and used in authentication policies.',
+    // CAPTCHA
+    okta_get_captcha_config:
+      'Audit CAPTCHA configuration — check whether hCaptcha or reCAPTCHA is configured and assigned to self-service registration and password recovery flows.',
+    // Default policy names
+    okta_audit_default_policies:
+      'Audit all policies for default out-of-box names — check whether any sign-on, password, authentication, or enrollment policies still use default names, which may indicate they have not been reviewed or hardened.',
+    // IdP configuration
+    okta_get_idp_config:
+      'Audit Identity Provider configurations — check whether any social or enterprise IdPs have insecure settings, missing attribute mappings, or lack MFA requirements.',
+    // Log streaming
+    okta_get_log_streaming_config:
+      'Audit Log Streaming configuration — check whether at least one active log stream is configured to forward Okta System Log events to a SIEM (Splunk, AWS EventBridge, etc.).',
+  };
+
+  let activeResolverCard = null;
+
+  function addResolverCard(tools) {
+    // Remove any previous resolver card so we never show stale options
+    if (activeResolverCard) activeResolverCard.remove();
+
+    const card = document.createElement('div');
+    card.className = 'resolver-card';
+
+    const header = document.createElement('div');
+    header.className = 'resolver-header';
+    header.innerHTML = `
+      <span class="resolver-icon">🔧</span>
+      <span class="resolver-title">Available Resolvers</span>
+      <span class="resolver-sub">Click a tool to investigate or apply a fix</span>
+    `;
+
+    const body = document.createElement('div');
+    body.className = 'resolver-body';
+
+    tools.forEach((tool) => {
+      const btn = document.createElement('button');
+      btn.className = 'resolver-btn';
+      btn.type = 'button';
+      btn.innerHTML = `
+        <span class="resolver-btn-name">${escapeHtml(tool.label)}</span>
+        <span class="resolver-btn-desc">${escapeHtml(tool.description.slice(0, 80))}</span>
+      `;
+      btn.addEventListener('click', () => {
+        if (busy) return;
+        const prompt = TOOL_PROMPTS[tool.name] || `Please run the ${escapeHtml(tool.label)} tool.`;
+        inputEl.value = prompt;
+        inputEl.style.height = 'auto';
+        inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
+        formEl.dispatchEvent(new Event('submit'));
+      });
+      body.appendChild(btn);
+    });
+
+    card.appendChild(header);
+    card.appendChild(body);
+    messagesEl.appendChild(card);
+    activeResolverCard = card;
+    scrollBottom(true);
+  }
+
+  // ── Auto-login on page load ──────────────────────────────
+
+  async function checkAuthAndAutoLogin() {
+    let authData;
+    try {
+      const r = await fetch('/api/auth-status');
+      authData = await r.json();
+    } catch {
+      return;
+    }
+
+    // Offline mode — skip login entirely
+    if (authData.offlineMode) return;
+
+    if (authData.loggedIn) {
+      currentOktaDomain = authData.domain;
+      if (authData.domain) {
+        headerSubtitle.textContent = tenantSubtitle(authData.domain);
+      }
+      return;
+    }
+
+    // Not authenticated — show notice and trigger login
+    const loginNotice = document.createElement('div');
+    loginNotice.className = 'welcome-card';
+    loginNotice.textContent = authData.expired
+      ? '🔐 Your Okta access token has expired. A browser window will open to re-authenticate…'
+      : '🔐 Connecting to your Okta tenant. A browser window will open to complete login…';
+    messagesEl.appendChild(loginNotice);
+    scrollBottom(true);
+
+    headerSubtitle.textContent = authData.expired ? 'Re-authenticating with Okta…' : 'Authenticating with Okta…';
+
+    let response;
+    try {
+      response = await fetch('/api/login', { method: 'POST' });
+    } catch (err) {
+      loginNotice.textContent = `⚠ Could not reach login service: ${err.message}`;
+      loginNotice.style.cssText = 'background:var(--red-bg);border-color:#FECACA;color:var(--red);';
+      return;
+    }
+
+    try {
+      for await (const { type, data } of readSSE(response)) {
+        if (type === 'login_result') {
+          if (data.ok) {
+            currentOktaDomain = data.domain;
+            headerSubtitle.textContent = data.domain
+              ? tenantSubtitle(data.domain)
+              : 'Connected to Okta';
+            loginNotice.textContent = data.domain
+              ? `✓ Authenticated with Okta tenant: ${data.domain}`
+              : '✓ Authenticated with Okta';
+            loginNotice.style.cssText = 'background:var(--green-bg);border-color:#BBF7D0;color:var(--green);';
+            checkStatus();
+          } else {
+            headerSubtitle.textContent = 'Login failed';
+            loginNotice.textContent = '⚠ Okta login failed. Please refresh the page and try again.';
+            loginNotice.style.cssText = 'background:var(--red-bg);border-color:#FECACA;color:var(--red);';
+          }
+        } else if (type === 'error') {
+          loginNotice.textContent = `⚠ Login error: ${data.message}`;
+          loginNotice.style.cssText = 'background:var(--red-bg);border-color:#FECACA;color:var(--red);';
+        }
+      }
+    } catch (err) {
+      loginNotice.textContent = `⚠ Login stream error: ${err.message}`;
+      loginNotice.style.cssText = 'background:var(--red-bg);border-color:#FECACA;color:var(--red);';
+    }
+  }
+
+  // ── TEA Report Panel ──────────────────────────────────────
+
+  const teaOpenBtn   = document.getElementById('tea-open-btn');
+  const teaPanel     = document.getElementById('tea-panel');
+  const teaCancelBtn = document.getElementById('tea-cancel-btn');
+  const teaSubmitBtn = document.getElementById('tea-submit-btn');
+  const teaDropZone  = document.getElementById('tea-drop-zone');
+  const teaFileInput = document.getElementById('tea-file-input');
+  const teaFileName  = document.getElementById('tea-file-name');
+  const teaPathInput = document.getElementById('tea-path-input');
+  const teaTabs      = document.querySelectorAll('.tea-tab');
+  const teaPanes     = document.querySelectorAll('.tea-pane');
+
+  let teaFile = null;
+  let teaActivePane = 'upload';
+
+  // Open / close panel
+  teaOpenBtn.addEventListener('click', () => {
+    teaPanel.classList.toggle('open');
+  });
+
+  teaCancelBtn.addEventListener('click', () => {
+    teaPanel.classList.remove('open');
+    resetTeaPanel();
+  });
+
+  // Tab switching
+  teaTabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      teaActivePane = tab.dataset.pane;
+      teaTabs.forEach((t) => t.classList.toggle('active', t === tab));
+      teaPanes.forEach((p) => p.classList.toggle('active', p.id === `tea-pane-${teaActivePane}`));
+    });
+  });
+
+  // Drop zone click
+  teaDropZone.addEventListener('click', () => teaFileInput.click());
+
+  teaFileInput.addEventListener('change', () => {
+    if (teaFileInput.files[0]) setTeaFile(teaFileInput.files[0]);
+  });
+
+  // Drag & drop
+  teaDropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    teaDropZone.classList.add('drag-over');
+  });
+
+  teaDropZone.addEventListener('dragleave', () => teaDropZone.classList.remove('drag-over'));
+
+  teaDropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    teaDropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) setTeaFile(file);
+  });
+
+  function setTeaFile(file) {
+    teaFile = file;
+    teaFileName.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(0)} KB)`;
+    teaFileName.style.display = 'block';
+  }
+
+  function resetTeaPanel() {
+    teaFile = null;
+    teaFileName.style.display = 'none';
+    teaFileName.textContent = '';
+    teaFileInput.value = '';
+    teaPathInput.value = '';
+  }
+
+  // Submit TEA review
+  teaSubmitBtn.addEventListener('click', async () => {
+    if (busy) return;
+
+    const isUploadPane = teaActivePane === 'upload';
+    const isPathPane   = teaActivePane === 'path';
+
+    if (isUploadPane && !teaFile) {
+      alert('Please select an HTML report file first.');
+      return;
+    }
+    if (isPathPane && !teaPathInput.value.trim()) {
+      alert('Please enter the full path to the report file.');
+      return;
+    }
+
+    // Close panel and show a user-side message
+    teaPanel.classList.remove('open');
+    const label = isUploadPane ? teaFile.name : teaPathInput.value.trim();
+    addUserMessage(`📋 Reviewing TEA report: ${label}`);
+
+    busy = true;
+    setUIBusy(true);
+    teaOpenBtn.disabled = true;
+
+    let formData;
+    if (isUploadPane) {
+      formData = new FormData();
+      formData.append('file', teaFile);
+    } else {
+      formData = new FormData();
+      formData.append('filePath', teaPathInput.value.trim());
+    }
+
+    if (currentProvider) formData.append('provider', currentProvider);
+
+    resetTeaPanel();
+
+    let response;
+    try {
+      response = await fetch('/api/tea-review', {
+        method: 'POST',
+        body: formData,
+      });
+    } catch (err) {
+      addErrorMessage('Network error: ' + err.message);
+      busy = false;
+      setUIBusy(false);
+      teaOpenBtn.disabled = false;
+      return;
+    }
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      addErrorMessage(`Server error ${response.status}: ${body}`);
+      busy = false;
+      setUIBusy(false);
+      teaOpenBtn.disabled = false;
+      return;
+    }
+
+    try {
+      for await (const { type, data } of readSSE(response)) {
+        switch (type) {
+          case 'text_delta':            appendTextToken(data.text); break;
+          case 'tool_call':             addToolCard(data.id, data.name, data.input); break;
+          case 'tool_result':           resolveToolCard(data.id, data.name, data.result); break;
+          case 'log_queries_available': addLogQueriesPrompt(data.queries); break;
+          case 'resolver_options':      addResolverCard(data.tools); break;
+          case 'done':                  finishAssistantTurn(); break;
+          case 'error':
+            finishAssistantTurn();
+            addErrorMessage(data.message);
+            break;
+        }
+      }
+    } catch (err) {
+      finishAssistantTurn();
+      addErrorMessage('Stream error: ' + err.message);
+    }
+
+    busy = false;
+    setUIBusy(false);
+    teaOpenBtn.disabled = false;
+    inputEl.focus();
+  });
+
+})();
+</script>
+</body>
+</html>
