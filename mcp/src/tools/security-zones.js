@@ -19,7 +19,6 @@ const SANCTIONED_COUNTRIES = [
   { country: 'CU', label: 'Cuba' },
   { country: 'IR', label: 'Iran' },
   { country: 'KP', label: 'North Korea' },
-  { country: 'SY', label: 'Syria' },
 ];
 
 // ── Russian-administered Ukrainian regions (ISO 3166-2) ──────────────────────
@@ -202,7 +201,7 @@ function registerSecurityZoneTools(server) {
     'Create or update Okta network zones for common security threats. ' +
     'Manages two separate zones: ' +
     '(1) an Enhanced Dynamic (DYNAMIC_V2) BLOCKLIST zone that blocks anonymizing proxies (TOR and/or all anonymizers); ' +
-    '(2) a DYNAMIC BLOCKLIST zone that blocks OFAC-sanctioned countries (Cuba, Iran, North Korea, Syria) ' +
+    '(2) a DYNAMIC BLOCKLIST zone that blocks OFAC-sanctioned countries (Cuba, Iran, North Korea) ' +
     'and Russian-administered Ukrainian regions (Crimea UA-43, Donetsk Oblast / DNR UA-14). ' +
     'Each zone is automatically found by its managed name and updated, or created fresh if absent — ' +
     'making the operation idempotent. ' +
@@ -223,7 +222,7 @@ function registerSecurityZoneTools(server) {
         .boolean()
         .optional()
         .describe(
-          'Block OFAC-sanctioned countries: Cuba (CU), Iran (IR), North Korea (KP), Syria (SY). ' +
+          'Block OFAC-sanctioned countries: Cuba (CU), Iran (IR), North Korea (KP). ' +
           'Defaults to true when omitted.'
         ),
 
